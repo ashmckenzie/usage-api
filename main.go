@@ -191,12 +191,12 @@ func main() {
   iinetUsage = getIINetUsage()
   vodafoneUsage = getVodafoneUsage()
 
-  ticker1 := time.NewTicker(15 * time.Minute)
+  ticker1 := time.NewTicker(30 * time.Minute)
   go func() {
     for range ticker1.C { iinetUsage = getIINetUsage() }
   }()
 
-  ticker2 := time.NewTicker(15 * time.Minute)
+  ticker2 := time.NewTicker(30 * time.Minute)
   go func() {
     for range ticker2.C { vodafoneUsage = getVodafoneUsage() }
   }()
