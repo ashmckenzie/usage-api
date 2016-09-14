@@ -1,50 +1,21 @@
-SOURCEDIR="."
-SOURCES := $(shell find $(SOURCEDIR) -name '*.go')
+VERSION=latest
+IMAGE_NAME=usage-api
+DOCKERFILE=Dockerfile
 
-BINARY=usage
-BINARY_RELEASE=bin/${BINARY}
-BINARY_VERSIONED_RELEASE=${BINARY_RELEASE}_${VERSION}
+BUILD_IMAGE_NAME=usage-api-build
+BUILD_DOCKERFILE=Dockerfile.build
 
-VERSION=$(shell cat VERSION)
-OS=$(shell uname -s)
-ARCH=$(shell uname -m)
-OS_AND_ARCH="${OS}_${ARCH}"
+RELEASES_DIR_NAME=releases
+RELEASES_DIR_REMOTE=/${RELEASES_DIR_NAME}
+RELEASES_DIR_LOCAL=${PWD}/${RELEASES_DIR_NAME}
+GOPATH_DIR=${PWD}/gopath
 
-.DEFAULT_GOAL: $(BINARY)
+BUILD_USER=builder
+CURRENT_USER_UID=1000
 
-$(BINARY): bin_dir deps $(SOURCES)
-	go build -o bin/${BINARY}
+default:
+	make -C app release
+	docker build -f ${DOCKERFILE} -t ${IMAGE_NAME}:${VERSION} .
 
-release: deps
-	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ${BINARY_RELEASE}
-
-releases: deps release_linux_x86_64 release_linux_armv7l release_darwin_x86_64
-
-release_linux_x86_64: bin_dir
-	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ${BINARY_VERSIONED_RELEASE}_Linux_x86_64
-
-release_linux_armv7l: bin_dir
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -a -installsuffix cgo -o ${BINARY_VERSIONED_RELEASE}_armv7l
-
-release_darwin_x86_64: bin_dir
-	CGO_ENABLED=0 GOOS=darwin go build -a -installsuffix cgo -o ${BINARY_VERSIONED_RELEASE}_Darwin_x86_64
-
-.PHONY: deps
-deps:
-	go get -d ./...
-
-.PHONY: update_deps
-update_deps:
-	go get -u -d ./...
-
-.PHONY: bin_dir
-bin_dir:
-	mkdir -p bin
-
-.PHONY: run
-run: deps
-	go run main.go $(filter-out $@, $(MAKECMDGOALS))
-
-.PHONY: clean
-clean:
-	rm -f ${BINARY} ${BINARY}_*
+run: default
+	docker run --rm -ti -e IINET_USERNAME=${IINET_USERNAME} -e IINET_PASSWORD:${IINET_PASSWORD} -e VODAFONE_MOBILE_NUMBER=${VODAFONE_MOBILE_NUMBER} -e VODAFONE_PASSWORD=${VODAFONE_PASSWORD} ${IMAGE_NAME}:${VERSION} bash
