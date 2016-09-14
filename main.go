@@ -28,46 +28,40 @@ var netClient = &http.Client{
 	Timeout: time.Second * 20,
 }
 
-var iinetUsage *Usage
-var vodafoneUsage *Usage
+var iinetusage *usage
+var vodafoneusage *usage
 
 // Context ..
 type Context struct {
 }
 
-// RawVodafoneUsage ..
-type RawVodafoneUsage struct {
+type rawVodafoneusage struct {
 	Quota uint64 `json:"unit_total"`
 	Used  uint64 `json:"unit_count"`
 }
 
-// Result ..
-type Result struct {
+type result struct {
 	XMLName      xml.Name      `xml:"ii_feed"`
-	Quotas       []QuotaReset  `xml:"volume_usage>quota_reset"`
-	TrafficTypes []TrafficType `xml:"volume_usage>expected_traffic_types>type"`
+	Quotas       []quotaReset  `xml:"volume_usage>quota_reset"`
+	TrafficTypes []trafficType `xml:"volume_usage>expected_traffic_types>type"`
 }
 
-// QuotaReset ..
-type QuotaReset struct {
+type quotaReset struct {
 	Anniversary   uint64 `xml:"anniversary"`
 	DaysRemaining uint64 `xml:"days_remaining"`
 }
 
-// TrafficType ..
-type TrafficType struct {
+type trafficType struct {
 	Classification string  `xml:"classification,attr"`
 	Used           uint64  `xml:"used,attr"`
-	Quotas         []Quota `xml:"quota_allocation"`
+	Quotas         []quota `xml:"quota_allocation"`
 }
 
-// Quota ..
-type Quota struct {
+type quota struct {
 	Amount uint64 `xml:",chardata"`
 }
 
-// Usage ..
-type Usage struct {
+type usage struct {
 	Quota            uint64  `json:"quota"`
 	Used             uint64  `json:"used"`
 	Remaining        uint64  `json:"remaining"`
@@ -76,14 +70,13 @@ type Usage struct {
 	DaysRemaining    uint64  `json:"days_remaining"`
 }
 
-// Data ..
-type Data struct {
-	IINet    Usage `json:"internet"`
-	Vodafone Usage `json:"mobile"`
+type data struct {
+	IINet    usage `json:"internet"`
+	Vodafone usage `json:"mobile"`
 }
 
 func (c *Context) rootPath(rw web.ResponseWriter, req *web.Request) {
-	allData := Data{IINet: *iinetUsage, Vodafone: *vodafoneUsage}
+	allData := data{IINet: *iinetusage, Vodafone: *vodafoneusage}
 	data, _ := json.Marshal(allData)
 
 	rw.Header().Add("Content-Type", "application/json")
@@ -96,7 +89,7 @@ func strToUInt(str string) (uint64, error) {
 	return strconv.ParseUint(nonFractionalPart[0], 10, 64)
 }
 
-func getVodafoneUsage() error {
+func getVodafoneusage() error {
 	var quota uint64
 	var used uint64
 	var daysRemaining uint64
@@ -113,21 +106,21 @@ func getVodafoneUsage() error {
 	bow.SetUserAgent("Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36")
 	err = bow.Open(url)
 	if err != nil {
-		Logger.Printf("ERROR: getVodafoneUsage(): bow.Open(url): %s", err)
+		Logger.Printf("ERROR: getVodafoneusage(): bow.Open(url): %s", err)
 		return err
 	}
 
 	if bow.Title() != "My usage | Vodafone Australia" {
 		fm, err = bow.Form("form#loginForm")
 		if err != nil {
-			Logger.Printf(`ERROR: getVodafoneUsage(): bow.Form("form#loginForm"): %s`, err)
+			Logger.Printf(`ERROR: getVodafoneusage(): bow.Form("form#loginForm"): %s`, err)
 			return err
 		}
 
 		fm.Input("userid", os.Getenv("VODAFONE_MOBILE_NUMBER"))
 		fm.Input("password", os.Getenv("VODAFONE_PASSWORD"))
 		if fm.Submit() != nil {
-			Logger.Printf("ERROR: getVodafoneUsage(): fm.Submit(): %s", err)
+			Logger.Printf("ERROR: getVodafoneusage(): fm.Submit(): %s", err)
 			return err
 		}
 	}
@@ -157,14 +150,14 @@ func getVodafoneUsage() error {
 	percentUsed := (float64(used) / float64(quota)) * 100
 	percentRemaining := 100 - percentUsed
 
-	vodafoneUsage = &Usage{Quota: quota, Used: used, Remaining: remaining, PercentUsed: percentUsed, PercentRemaining: percentRemaining, DaysRemaining: daysRemaining}
+	vodafoneusage = &usage{Quota: quota, Used: used, Remaining: remaining, PercentUsed: percentUsed, PercentRemaining: percentRemaining, DaysRemaining: daysRemaining}
 
-	Logger.Printf("Vodafone usage=[%v]", vodafoneUsage)
+	Logger.Printf("Vodafone usage=[%v]", vodafoneusage)
 
 	return nil
 }
 
-func getIINetUsage() error {
+func getIINetusage() error {
 	username := os.Getenv("IINET_USERNAME")
 	password := os.Getenv("IINET_PASSWORD")
 
@@ -172,16 +165,16 @@ func getIINetUsage() error {
 
 	response, err := netClient.Get(url)
 	if err != nil {
-		Logger.Printf("ERROR: getIINetUsage(): netClient.Get(url): %s", err)
+		Logger.Printf("ERROR: getIINetusage(): netClient.Get(url): %s", err)
 		return err
 	}
 	data, _ := ioutil.ReadAll(response.Body)
 	response.Body.Close()
 
-	r := Result{}
+	r := result{}
 	err = xml.Unmarshal([]byte(data), &r)
 	if err != nil {
-		Logger.Printf("ERROR: getIINetUsage(): ml.Unmarshal([]byte(data), &r): %s", err)
+		Logger.Printf("ERROR: getIINetusage(): ml.Unmarshal([]byte(data), &r): %s", err)
 		return err
 	}
 
@@ -192,9 +185,9 @@ func getIINetUsage() error {
 	percentUsed := (float64(used) / float64(quota)) * 100
 	percentRemaining := 100 - percentUsed
 
-	iinetUsage = &Usage{Quota: quota, Used: used, Remaining: remaining, PercentUsed: percentUsed, PercentRemaining: percentRemaining, DaysRemaining: daysRemaining}
+	iinetusage = &usage{Quota: quota, Used: used, Remaining: remaining, PercentUsed: percentUsed, PercentRemaining: percentRemaining, DaysRemaining: daysRemaining}
 
-	Logger.Printf("IINet usage=[%v]", iinetUsage)
+	Logger.Printf("IINet usage=[%v]", iinetusage)
 
 	return nil
 }
@@ -221,20 +214,20 @@ func loggerMiddleware(rw web.ResponseWriter, req *web.Request, next web.NextMidd
 }
 
 func main() {
-	getIINetUsage()
-	getVodafoneUsage()
+	getIINetusage()
+	getVodafoneusage()
 
 	ticker1 := time.NewTicker(30 * time.Minute)
 	go func() {
 		for range ticker1.C {
-			getIINetUsage()
+			getIINetusage()
 		}
 	}()
 
 	ticker2 := time.NewTicker(30 * time.Minute)
 	go func() {
 		for range ticker2.C {
-			getVodafoneUsage()
+			getVodafoneusage()
 		}
 	}()
 
