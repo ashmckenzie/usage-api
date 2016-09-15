@@ -1,2 +1,4 @@
 .envrc
 bin/
+app/release
+release

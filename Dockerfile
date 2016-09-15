@@ -10,6 +10,6 @@ RUN cd /usr/local/bin && curl https://bin.equinox.io/c/ekMN3bCZFUn/forego-stable
 RUN mkdir ${APP_HOME}
 WORKDIR ${APP_HOME}
 
-COPY Procfile app/release/* ${APP_HOME}/
+COPY Procfile release/* ${APP_HOME}/
 
 CMD forego start
