@@ -28,6 +28,8 @@ var netClient = &http.Client{
   Timeout: time.Second * 20,
 }
 
+var version = os.Getenv("VERSION")
+
 var iinetusage *usage
 var vodafoneusage *usage
 
@@ -80,6 +82,11 @@ type usage struct {
   DaysRemaining    uint64  `json:"days_remaining"`
 }
 
+type output struct {
+  Data    data   `json:"data"`
+  Version string `json:"version"`
+}
+
 type data struct {
   IINet    usage `json:"internet"`
   Vodafone usage `json:"mobile"`
@@ -91,12 +98,21 @@ func resetRefreshPeriods() {
 }
 
 func (c *Context) rootPath(rw web.ResponseWriter, req *web.Request) {
-  allData := data{IINet: *iinetusage, Vodafone: *vodafoneusage}
-  data, _ := json.Marshal(allData)
+  allData := data{
+    IINet:    *iinetusage,
+    Vodafone: *vodafoneusage,
+  }
+
+  allOutput := output{
+    Data:    allData,
+    Version: version,
+  }
+
+  outputJSON, _ := json.Marshal(allOutput)
 
   rw.Header().Add("Content-Type", "application/json")
   resetRefreshPeriods()
-  fmt.Fprint(rw, string(data))
+  fmt.Fprint(rw, string(outputJSON))
 }
 
 func strToUInt(str string) (uint64, error) {
