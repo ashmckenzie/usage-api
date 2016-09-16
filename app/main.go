@@ -22,7 +22,7 @@ import (
 )
 
 // Logger ..
-var Logger = log.New(os.Stdout, "usage: ", log.Ldate|log.Lmicroseconds)
+var Logger = log.New(os.Stdout, "", log.Ldate|log.Lmicroseconds)
 
 var netClient = &http.Client{
   Timeout: time.Second * 20,
@@ -30,6 +30,16 @@ var netClient = &http.Client{
 
 var iinetusage *usage
 var vodafoneusage *usage
+
+var refreshMax time.Duration = 30
+
+var refreshIINet time.Duration
+var refreshVodafone time.Duration
+
+var refreshIINetMin time.Duration = 15
+var refreshIINetAt = refreshIINetMin
+var refreshVodafoneMin time.Duration = 30
+var refreshVodafoneAt = refreshIINetMin
 
 // Context ..
 type Context struct {
@@ -75,12 +85,17 @@ type data struct {
   Vodafone usage `json:"mobile"`
 }
 
+func resetRefreshPeriods() {
+  refreshIINetAt = refreshIINetMin
+  refreshVodafoneAt = refreshVodafoneMin
+}
+
 func (c *Context) rootPath(rw web.ResponseWriter, req *web.Request) {
   allData := data{IINet: *iinetusage, Vodafone: *vodafoneusage}
   data, _ := json.Marshal(allData)
 
   rw.Header().Add("Content-Type", "application/json")
-
+  resetRefreshPeriods()
   fmt.Fprint(rw, string(data))
 }
 
@@ -213,35 +228,61 @@ func loggerMiddleware(rw web.ResponseWriter, req *web.Request, next web.NextMidd
   Logger.Printf("[%d %s] %d '%s'\n", duration, durationUnits, rw.StatusCode(), req.URL.Path)
 }
 
-func main() {
+func listenOn() string {
   port := os.Getenv("PORT")
   if len(port) == 0 {
     port = "3000"
   }
-  listenOn := fmt.Sprintf("0.0.0.0:%s", port)
+  return fmt.Sprintf("0.0.0.0:%s", port)
+}
 
+func setupIINetUsageRefresh() {
   getIINetusage()
+
+  tickerIINetRefresh := time.NewTicker(1 * time.Minute)
+  go func() {
+    for range tickerIINetRefresh.C {
+      if refreshIINet >= refreshIINetAt {
+        getIINetusage()
+        refreshIINet = 0
+        refreshIINetAt = refreshMax
+      } else {
+        refreshIINet++
+      }
+    }
+  }()
+}
+
+func setupVodafoneUsageRefresh() {
   getVodafoneusage()
 
-  ticker1 := time.NewTicker(30 * time.Minute)
+  tickerVodafoneRefresh := time.NewTicker(1 * time.Minute)
   go func() {
-    for range ticker1.C {
-      getIINetusage()
+    for range tickerVodafoneRefresh.C {
+      if refreshVodafone >= refreshVodafoneAt {
+        getVodafoneusage()
+        refreshVodafone = 0
+        refreshVodafoneAt = refreshMax
+      } else {
+        refreshVodafone++
+      }
     }
   }()
+}
 
-  ticker2 := time.NewTicker(30 * time.Minute)
-  go func() {
-    for range ticker2.C {
-      getVodafoneusage()
-    }
-  }()
-
+func setupHTTP() {
   router := web.New(Context{}).
     Middleware(loggerMiddleware).
     Get("/", (*Context).rootPath)
 
-  Logger.Println("Listening on", listenOn)
+  listenOn := listenOn()
 
+  Logger.Println("Listening on", listenOn)
   http.ListenAndServe(listenOn, router)
+}
+
+func main() {
+  setupIINetUsageRefresh()
+  setupVodafoneUsageRefresh()
+  setupHTTP()
 }
