@@ -171,10 +171,18 @@ func getVodafoneusage() error {
     return err
   }
 
-  re := regexp.MustCompile(`(?P<days_remaining>\d+) days left.+Inclusions refresh: (?P<resets_at_date>\d+ \w{3})`)
-  r2 := re.FindAllStringSubmatch(periodDetail, -1)[0]
+  // spew.Dump(periodDetail)
 
-  daysRemaining, _ = strToUInt(r2[1])
+  endsTodayRegex := regexp.MustCompile(`Ends today`)
+
+  if endsTodayRegex.Match([]byte(periodDetail)) {
+    daysRemaining = 0
+  } else {
+    re := regexp.MustCompile(`(?P<days_remaining>\d+) days left.+Inclusions refresh: (?P<resets_at_date>\d+ \w{3})`)
+    r2 := re.FindAllStringSubmatch(periodDetail, -1)[0]
+    daysRemaining, _ = strToUInt(r2[1])
+  }
+
   quota, _ = strToUInt(dataDetail["unit_total"].(string))
   used, _ = strToUInt(dataDetail["unit_count"].(string))
   remaining := quota - used
@@ -201,6 +209,8 @@ func getIINetusage() error {
   }
   data, _ := ioutil.ReadAll(response.Body)
   response.Body.Close()
+
+  // spew.Dump(data)
 
   r := result{}
   err = xml.Unmarshal([]byte(data), &r)
