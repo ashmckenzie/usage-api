@@ -162,7 +162,7 @@ func getVodafoneusage() error {
   }
   _ = json.Unmarshal([]byte(attr), &dataDetail)
 
-  bow.Find("div.hidden-mobile:nth-child(1) > div:nth-child(1) > div:nth-child(1) > span:nth-child(1)").Each(func(_ int, s *goquery.Selection) {
+  bow.Find(".days-left__section .billing_cycle").Each(func(_ int, s *goquery.Selection) {
     periodDetail = strings.Replace(strings.Trim(s.Text(), " "), "\n", " ", -1)
   })
   if len(periodDetail) == 0 {
@@ -178,7 +178,7 @@ func getVodafoneusage() error {
   if endsTodayRegex.Match([]byte(periodDetail)) {
     daysRemaining = 0
   } else {
-    re := regexp.MustCompile(`(?P<days_remaining>\d+) days left.+Inclusions refresh: (?P<resets_at_date>\d+ \w{3})`)
+    re := regexp.MustCompile(`(?P<days_remaining>\d+) days left`)
     r2 := re.FindAllStringSubmatch(periodDetail, -1)[0]
     daysRemaining, _ = strToUInt(r2[1])
   }
@@ -210,8 +210,6 @@ func getIINetusage() error {
   data, _ := ioutil.ReadAll(response.Body)
   response.Body.Close()
 
-  // spew.Dump(data)
-
   r := result{}
   err = xml.Unmarshal([]byte(data), &r)
   if err != nil {
@@ -220,7 +218,8 @@ func getIINetusage() error {
   }
 
   daysRemaining := r.Quotas[0].DaysRemaining
-  quota := r.TrafficTypes[0].Quotas[0].Amount * 1000000
+  // quota := r.TrafficTypes[0].Quotas[0].Amount * 1000000
+  quota := uint64(100000000000)
   used := r.TrafficTypes[0].Used
   remaining := quota - used
   percentUsed := (float64(used) / float64(quota)) * 100
