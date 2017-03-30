@@ -9,6 +9,7 @@ RELEASE_DIR_NAME=release
 RELEASE_DIR_REMOTE=/${RELEASE_DIR_NAME}
 RELEASE_DIR_LOCAL=${PWD}/${RELEASE_DIR_NAME}
 GOPATH_DIR=${PWD}/gopath
+BUILD_ARGS=-i -ldflags="-X main.version=${VERSION}"
 
 BUILD_USER=builder
 CURRENT_USER_UID=1000
@@ -16,10 +17,10 @@ CURRENT_USER_UID=1000
 VERSION=$(shell cat VERSION)
 
 default: bin_dir deps
-	go build -o bin/${BINARY}
+	go build ${BUILD_ARGS} -o bin/${BINARY}
 
 static: release_dir deps
-	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o ${BINARY_RELEASE}
+	CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo ${BUILD_ARGS} -o ${BINARY_RELEASE}
 
 release: create_build_image
 	mkdir -p ${RELEASE_DIR_LOCAL} ${GOPATH_DIR}

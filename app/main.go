@@ -28,7 +28,7 @@ var netClient = &http.Client{
   Timeout: time.Second * 20,
 }
 
-var version = os.Getenv("VERSION")
+var version string
 
 var iinetusage *usage
 var vodafoneusage *usage
@@ -219,7 +219,7 @@ func getIINetusage() error {
 
   daysRemaining := r.Quotas[0].DaysRemaining
   // quota := r.TrafficTypes[0].Quotas[0].Amount * 1000000
-  quota := uint64(100000000000)
+  quota := uint64(1000000000000)
   used := r.TrafficTypes[0].Used
   remaining := quota - used
   percentUsed := (float64(used) / float64(quota)) * 100
@@ -307,6 +307,7 @@ func setupHTTP() {
 }
 
 func main() {
+	Logger.Println("Version", version)
   setupIINetUsageRefresh()
   setupVodafoneUsageRefresh()
   setupHTTP()
